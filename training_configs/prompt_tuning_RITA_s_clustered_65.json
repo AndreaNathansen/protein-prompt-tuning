@@ -1,0 +1,17 @@
+{
+    "project_name": "prompt-tuning-clustered-65",
+    "model": "lightonai/RITA_s",
+    "block_size": 1024,
+    "batch_size": 2,
+    "num_iterations": 3,
+    "n_tokens": 10,
+    "dataset_file_train": "datasets/InterProUniprotPF03272_65_train.fasta",
+    "dataset_file_validation": "datasets/InterProUniprotPF03272_65_validation.fasta",
+    "dataset_file_test": "datasets/InterProUniprotPF03272_65_test.fasta",
+    "seed": 1234567890,
+    "init_from_vocab": true,
+    "num_epochs": 300,
+    "checkpoint_interval": 1,
+    "patience": 20,
+    "learning_rate": 0.001
+}

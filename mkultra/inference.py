@@ -1,4 +1,8 @@
-from transformers import GPT2LMHeadModel, GPTNeoForCausalLM, GPTJForCausalLM, TextGenerationPipeline
+from transformers import GPT2LMHeadModel, GPTNeoForCausalLM, GPTJForCausalLM, TextGenerationPipeline, AutoModelForCausalLM, AutoTokenizer
+# Workaround so that RITA import works
+AutoModelForCausalLM.from_pretrained("lightonai/RITA_s", trust_remote_code=True)
+AutoTokenizer.from_pretrained("lightonai/RITA_s")
+from transformers_modules.lightonai.RITA_s.fced662eadd2b7099a3b92a88365dfc3c98eb3da.rita_modeling import RITAModelForCausalLM
 from mkultra.soft_prompt import SoftPrompt
 import torch
 
@@ -8,14 +12,14 @@ EXTRA_ALLOWED_MODELS = [
     "GPTJSoftPromptLM"
     ]
 
-for model in EXTRA_ALLOWED_MODELS:
-    if model not in TextGenerationPipeline.ALLOWED_MODELS:
-        TextGenerationPipeline.ALLOWED_MODELS.append(model)
+#for model in EXTRA_ALLOWED_MODELS:
+#    if model not in TextGenerationPipeline.ALLOWED_MODELS:
+#        TextGenerationPipeline.ALLOWED_MODELS.append(model)
 
-class GPTSoftPromptMixin:
+class SoftPromptMixin:
     def replace_special_tokens(self, input_ids):
         # Embed everything normally first
-        inputs_embeds = self.transformer.wte(input_ids.to(self.device))
+        inputs_embeds = self.transformer.get_input_embeddings()(input_ids.to(self.device))
 
         n_batches = input_ids.shape[0]
         n_tokens = input_ids.shape[-1]
@@ -44,12 +48,16 @@ class GPTSoftPromptMixin:
             # User is using inputs_embeds, nothing more we can do
             return super().forward(*args, **kwargs)
 
-        kwargs['input_ids'] = None
+        kwargs = self.update_kwargs_input_ids(kwargs)
         kwargs['inputs_embeds'] = self.replace_special_tokens(input_ids)
 
         args = ()
 
         return super().forward(*args, **kwargs)
+
+    def update_kwargs_input_ids(kwargs):
+        raise NotImplementedError
+        
 
     @torch.no_grad()
     def generate(self, *args, **kwargs):
@@ -77,9 +85,25 @@ class GPTSoftPromptMixin:
         SoftPrompt._register_model(model)
         return model
 
+
+class GPTSoftPromptMixin(SoftPromptMixin):
+    def update_kwargs_input_ids(self, kwargs_dict):
+        kwargs_dict['input_ids'] = None
+        return kwargs_dict
+
     def prepare_inputs_for_generation(self, input_ids, past=None, *args, **kwargs):
         input_ids = input_ids.to(self.device)
         return super().prepare_inputs_for_generation(input_ids, past, *args, **kwargs)
+
+
+class RITASoftPromptMixin(SoftPromptMixin):
+    def update_kwargs_input_ids(self, kwargs_dict):
+        return kwargs_dict
+
+    def prepare_inputs_for_generation(self, input_ids, *args, **kwargs):
+        input_ids = input_ids.to(self.device)
+        return super().prepare_inputs_for_generation(input_ids, *args, **kwargs)
+
 
 class GPT2SoftPromptLM(GPTSoftPromptMixin, GPT2LMHeadModel):
     def __init__(self, config):
@@ -92,3 +116,8 @@ class GPTNeoSoftPromptLM(GPTSoftPromptMixin, GPTNeoForCausalLM):
 class GPTJSoftPromptLM(GPTSoftPromptMixin, GPTJForCausalLM):
     def __init__(self, config):
         super().__init__(config)
+
+class RITAModelForCausalSoftPromptLM(RITASoftPromptMixin, RITAModelForCausalLM):
+    def __init__(self, config):
+        super().__init__(config)
+        

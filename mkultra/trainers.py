@@ -1,142 +1,68 @@
-from transformers import Trainer
-from transformers import Adafactor
+import math
+import os
 import random
+
 import torch
+from mkultra.checkpoint_loader import CheckpointLoader
+from mkultra.soft_prompt import SoftPrompt
+from tqdm import tqdm
 
-class WorldInfoTrainer:
-    def __init__(self, model, tokenizer, optimizer, blocks, max_spacing=0, max_block_size=1024, min_loss=0, repeat_to_fill=True):
-        self.model = model
-        self.tokenizer = tokenizer
-        if optimizer is None:
-            self.optimizer = Adafactor([model.get_soft_params()])
-        else:
-            self.optimizer = optimizer
-        self.blocks = blocks
-        self.max_spacing = max_spacing
-        self.max_block_size = max_block_size
-        self.min_loss = min_loss
-        self.repeat_to_fill = repeat_to_fill
-
-        self.tokenize_blocks()
-
-    def tokenize_blocks(self):
-        for block in self.blocks:
-            block['call'] = self.tokenizer(block['call'], return_tensors="pt").input_ids.to(self.model.device)
-            block['response'] = self.tokenizer(block['response'], return_tensors="pt").input_ids.to(self.model.device)
-
-    def arrange_blocks(self):
-        arranged_blocks = list()
-
-        for block in self.blocks:
-            call = block['call']
-            response = block['response']
-            real_max_spacing = min(
-                self.max_block_size - self.model.learned_embedding.shape[-2] - call.shape[-1] - response.shape[-1],
-                self.max_spacing)
-
-            spacing = random.randint(0, real_max_spacing)
-            space_ids = torch.randint(low=0, high=len(self.tokenizer), size=(1, spacing)).to(self.model.device)
-
-            ignore_len = call.shape[-1] + spacing
-
-            # Cat spacing and call first
-            input_ids = torch.cat([space_ids, call], dim=1)
-            labels = torch.cat([torch.full((1,ignore_len),-100).to(self.model.device)], dim=1)
-
-            if self.repeat_to_fill:
-                # Cat response until nearly full
-                while (input_ids.shape[-1] + response.shape[-1]) < self.max_block_size:
-                    input_ids = torch.cat([input_ids, response], dim=1)
-                    labels = torch.cat([labels, response], dim=1)
-                    print(input_ids.shape)
-            else:
-                input_ids = torch.cat([input_ids, response], dim=1)
-                labels = torch.cat([labels, response], dim=1)
-
-            arranged_blocks.append((input_ids, labels))
-
-        random.shuffle(arranged_blocks)
-
-        return arranged_blocks
-
-    def train(self, epochs=1):
-        self.model.train()
-
-        steps = 0
-        total_steps = len(self.blocks) * epochs
-
-        for i in range(epochs):
-            arranged_blocks = self.arrange_blocks()
-
-            epoch_loss = 0
-
-            for input_ids, labels in arranged_blocks:
-                self.optimizer.zero_grad()
-                output = self.model(input_ids=input_ids, labels=labels)
-                loss = output.loss
-                loss.backward()
-                self.optimizer.step()
-                steps += 1
-                epoch_loss += loss.item()
-
-            epoch_loss /= len(arranged_blocks)
-            print(f"Epoch {i} loss: {epoch_loss}")
-
-            if(epoch_loss < self.min_loss):
-                return
 
 class SoftPromptTrainer:
     def __init__(self,
-                 model=None,
-                 optimizer=None,
-                 project_dir=None,
-                 text_path=None,
-                 block_size=32,
+                 model,
+                 optimizer_class,
+                 optimizer_params,
+                 project_dir,
+                 data_loader_train,
+                 data_loader_eval,
+                 # number of steps for early stopping
+                 patience=None,
                  n_tokens=20,
                  ema_alpha=0.1,
-                 checkpoint_interval=200,
-                 gradient_acc_steps=1,
-                 shuffle_seed=None):
+                 checkpoint_interval=1,
+                 init_from_vocab=True,
+                 prompt_init_seed=None,
+                 shuffle_seed=None,
+                 logging_interval=100):
+        torch.cuda.empty_cache()
 
         self.model=model
-        self.optimizer=optimizer
         self.project_dir=project_dir
-        self.text_path=text_path
-        self.block_size=block_size
+        self.data_loader_train=data_loader_train
+        self.data_loader_eval=data_loader_eval
+        self.patience=patience
         self.n_tokens=n_tokens
         self.ema_alpha=ema_alpha
         self.checkpoint_interval=checkpoint_interval
-        self.shuffle_seed=shuffle_seed
-        self.gradient_acc_steps=gradient_acc_steps
+        self.shuffle_seed = shuffle_seed
+        self.logging_interval = logging_interval
 
         self._maybe_create_project_directory()
-        self.loaded_sp = self._load_latest_checkpoint()
-        self.tokens = self._get_tokens()
-        self.blocks = self._get_blocks()
-        self.block_order = self._get_block_order()
+        self.checkpoint_loader = CheckpointLoader(self.project_dir)
+        highest_epoch, self.loaded_sp = self.checkpoint_loader.load_latest_checkpoint()
 
         # Initialize soft prompt in model
         if self.loaded_sp is None:
-            model.initialize_soft_prompt(n_tokens=n_tokens)
-            self.sp_step = 0
+            self.model.initialize_soft_prompt(n_tokens=n_tokens, init_from_vocab=init_from_vocab, prompt_init_seed=prompt_init_seed)
+            self.sp_epoch = 0
             self.ema_loss = None
             self.eval_loss = None
+            self.min_eval_loss = math.inf
+            self.min_eval_loss_epoch = 0
         else:
-            model.set_soft_prompt(self.loaded_sp)
-            self.sp_step = self.loaded_sp._metadata['step']
+            self.model.set_soft_prompt(self.loaded_sp)
+            # the saved epoch is the previous one
+            self.sp_epoch = self.loaded_sp._metadata['epoch'] + 1
             self.ema_loss = self.loaded_sp._metadata['loss']
             self.eval_loss = self.loaded_sp._metadata['eval_loss']
-
-    def _filename_for_checkpoint(self, step):
-        return f"{self._project_name()}-step-{step}.json"
-
-    def _project_name(self):
-        import os
-        return os.path.basename(os.path.normpath(self.project_dir))
+            self.min_eval_loss = self.loaded_sp._metadata['min_eval_loss']
+            self.min_eval_loss_epoch = self.loaded_sp._metadata['min_eval_loss_epoch']
+        optimizer_params['params'] = [self.model.get_soft_params()]
+        self.optimizer = optimizer_class(**optimizer_params)
+        self._load_optimizer_state_dict(highest_epoch)
 
     def _maybe_create_project_directory(self):
-        from mkultra.soft_prompt import SoftPrompt
-        import os
         # Look for existing project directory
         try:
             os.makedirs(self.project_dir)
@@ -144,210 +70,132 @@ class SoftPromptTrainer:
         except FileExistsError:
             print(f"Found project directory at {self.project_dir}")
 
-    def _load_latest_checkpoint(self):
-        from mkultra.soft_prompt import SoftPrompt
-        import os
 
-        # Look for existing checkpoints
-        project_files = os.listdir(self.project_dir)
-        if project_files is not None:
-            checkpoint_files = [check_file for check_file in project_files if ('-step-' in check_file) ]
-            if len(checkpoint_files) > 0:
-                highest_step = max([ int(check_file[check_file.rfind('-step-')+6:-5]) for check_file in checkpoint_files ])
-                print(f"Loading latest checkpoint: {highest_step}")
-                return SoftPrompt.from_file( os.path.join(self.project_dir, self._filename_for_checkpoint(highest_step)) )
-            else:
-                print("No checkpoints found")
+    def _load_optimizer_state_dict(self, highest_epoch):
+        if highest_epoch is not None:
+            state = self.checkpoint_loader.load_optimizer_state_dict(highest_epoch)
+            self.optimizer.load_state_dict(state)
 
-        return None
+    def _save_checkpoint(self):
+        sp = SoftPrompt.from_tuning_model(self.model,
+                    {"name"     : f"{self.checkpoint_loader.project_name()} Epoch {self.sp_epoch}",
+                    "epoch"     : self.sp_epoch,
+                    "loss"      : self.ema_loss,
+                    "min_eval_loss": self.min_eval_loss,
+                    "min_eval_loss_epoch": self.min_eval_loss_epoch,
+                    "eval_loss": self.eval_loss})
+        sp.to_file( os.path.join( self.project_dir,self.checkpoint_loader.json_filename_for_checkpoint(self.sp_epoch) ))
+        torch.save(self.optimizer.state_dict(), os.path.join(self.project_dir, self.checkpoint_loader.optimizer_filename_for_checkpoint(self.sp_epoch)))
 
-    def _get_tokens(self):
-        import json
-        import os
-        from transformers import GPT2TokenizerFast
-
-        tokens = None
-        tokens_path = os.path.join(self.project_dir,"tokens.json")
-        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-
-        # See if we already have a tokens file
-        try:
-            with open(tokens_path, 'r', encoding='utf-8') as file:
-                tokens = json.load(file)
-                print("Loaded existing tokens.json file")
-        except FileNotFoundError:
-            print("No tokens.json exists, creating it...")
-
-        # If not, make one from the text path
-        if tokens is None:
-            with open(self.text_path, 'r', encoding='utf-8') as file:
-                text = file.read()
-            tokens = tokenizer.encode(text)
-            with open(tokens_path, 'x', encoding='utf-8') as file:
-                json.dump(tokens, file)
-
-        return tokens
-
-    def _get_blocks(self):
-        import math
-
-        # Partition tokens into blocks
-        blocks = list()
-        num_blocks = math.ceil(len(self.tokens)/self.block_size)
-
-        for block_num in range(num_blocks):
-            start = block_num * self.block_size
-            end = min(start + self.block_size, len(self.tokens))
-            blocks.append( self.tokens[start:end] )
-
-        return blocks
-
-    def _get_block_order(self):
-        import os
-        import json
-
-        block_order_path = os.path.join(self.project_dir, "block_order.json")
-
-        # See if we already have a block_order file
-        try:
-            with open(block_order_path, 'r', encoding='utf-8') as file:
-                block_order = json.load(file)
-                print("Loaded existing block_order.json file")
-
-        except FileNotFoundError:
-            print("No block_order.json exists, creating it...")
-            block_order = [*range(len(self.blocks))]
-
-            with open(block_order_path, 'x', encoding='utf-8') as file:
-                json.dump(block_order, file)
-
-        return block_order
-
-    def train(self, num_training_steps=None):
-        from tqdm import tqdm
-        from mkultra.soft_prompt import SoftPrompt
-        import random
-        import torch
-        import os
-        import json
-        import math
-
-        # Train for one epoch by default
-        if num_training_steps is None:
-            num_training_steps = len(self.blocks)
-
+    def train(self, num_epochs=1):
         self.model.train()
         torch.cuda.empty_cache()
-        loss_log_path = os.path.join(self.project_dir,"loss_log.csv")
-        bar = tqdm(total=num_training_steps)
-        session_step = 0
+        loss_log_path_train = os.path.join(self.project_dir,"loss_log_train.csv")
+        loss_log_path_eval = os.path.join(self.project_dir,"loss_log_eval.csv")
+        steps_per_epoch = len(self.data_loader_train)
+        bar = tqdm(total=steps_per_epoch * num_epochs)
 
-        # If we have a shuffle seed, shuffle beforehand
-        if self.shuffle_seed is not None:
-            random.seed(self.shuffle_seed)
-            self.block_order = [*range(len(self.blocks))]
-            random.shuffle(self.block_order)
+        while self.sp_epoch < num_epochs:
+            self.model.train()
+            current_seed = self.shuffle_seed + self.sp_epoch
+            torch.manual_seed(current_seed)
+            torch.cuda.manual_seed(current_seed)
+            for i, (batch, attention_mask, labels) in enumerate(self.data_loader_train):
+                # use cuda when on GPU
+                input_ids = batch.cuda().detach()
+                input_attention_mask = attention_mask.cuda().detach()
+                input_labels = labels.cuda().detach()
+                # input_ids = batch.detach()
+                # input_attention_mask = attention_mask.detach()
+                # input_labels = labels.detach()
 
-        while session_step < num_training_steps:
-            # Shuffle blocks every epoch
-            if self.sp_step % len(self.blocks) == 0:
-                random.shuffle(self.block_order)
+                # Forward pass and optimize
+                outputs = self.model(input_ids=input_ids, labels=input_labels, attention_mask=input_attention_mask)
+                loss = outputs.loss
+                loss.backward()
+                instant_loss = loss.item()
 
-                with open(os.path.join(self.project_dir, "block_order.json"), 'w', encoding='utf-8') as file:
-                    json.dump(self.block_order, file)
-
-            idx = self.sp_step % len(self.blocks)
-            block = self.blocks[self.block_order[idx]]
-
-            input_ids = torch.LongTensor(block).unsqueeze(0).cuda().detach()
-
-            # Forward pass and optimize
-            outputs = self.model(input_ids=input_ids, labels=input_ids)
-            loss = outputs.loss
-            loss.backward()
-            instant_loss = loss.item()
-
-            # Gradient accumulation
-            if (session_step%self.gradient_acc_steps==0) or (session_step == (num_training_steps-1)):
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
-            # Discard tensor that was moved to GPU
-            del input_ids
-            torch.cuda.empty_cache()
+                lr = self.optimizer.param_groups[0]["lr"]
 
-            if math.isnan(instant_loss):
-                raise ValueError(f"NaN loss at step {self.sp_step}")
+                # Discard tensor that was moved to GPU
+                del input_ids
+                del input_labels
+                del input_attention_mask
+                torch.cuda.empty_cache()
 
-            # Calculate EMA loss
-            self.ema_loss = self.ema_alpha*instant_loss + (1-self.ema_alpha)*self.ema_loss if self.ema_loss is not None else instant_loss
+                if math.isnan(instant_loss):
+                    raise ValueError(f"NaN loss at step {i} in epoch {self.sp_epoch}")
 
-            bar.set_postfix({
-                "Model Step" : self.sp_step,
-                "EMA Loss"   : self.ema_loss,
-            })
-            bar.update(1)
+                # Calculate EMA loss
+                self.ema_loss = self.ema_alpha*instant_loss + (1-self.ema_alpha)*self.ema_loss if self.ema_loss is not None else instant_loss
+            
+                if i % self.logging_interval == 0:
+                    bar.set_postfix({
+                        "Epoch" : self.sp_epoch,
+                        "Step" : i,
+                        "EMA Loss" : self.ema_loss,
+                        "lr": lr
+                    })
+                    bar.update(self.logging_interval)
 
-            # Save checkpoint every so often
-            if self.sp_step%self.checkpoint_interval == 0:
-                sp = SoftPrompt.from_tuning_model(self.model,
-                    {"name"     : f"{self._project_name} Step {self.sp_step}",
-                    "step"      : self.sp_step,
-                    "loss"      : self.ema_loss})
-                sp.to_file( os.path.join( self.project_dir,self._filename_for_checkpoint(self.sp_step) ) )
+                total_step = self.sp_epoch * steps_per_epoch + i
 
-            with open(loss_log_path, 'a', encoding='utf-8') as file:
-                file.write(f"{self.sp_step},{self.ema_loss}\n")
+                with open(loss_log_path_train, 'a', encoding='utf-8') as file:
+                    file.write(f"{total_step},{self.ema_loss}\n")
 
-            session_step += 1
-            self.sp_step += 1
+            # Save checkpoint every so often and in the last epoch
+            if (self.sp_epoch%self.checkpoint_interval == 0) or (self.sp_epoch == num_epochs - 1):
+                # evaluate once per checkpoint
+                self.eval_loss = self.evaluate()
+                with open(loss_log_path_eval, 'a', encoding='utf-8') as file:
+                    file.write(f"{self.sp_epoch},{self.eval_loss}\n")
+                if self.eval_loss < self.min_eval_loss:
+                    self.min_eval_loss = self.eval_loss
+                    self.min_eval_loss_epoch = self.sp_epoch
 
-        # Save a checkpoint once done
-        sp = SoftPrompt.from_tuning_model(self.model,
-            {"name"  : f"{self._project_name} {self.sp_step}",
-            "step"  : self.sp_step,
-            "loss"  : self.ema_loss})
-        sp.to_file( os.path.join( self.project_dir,self._filename_for_checkpoint(self.sp_step) ) )
+                self._save_checkpoint()
 
-    def evaluate(self, eval_percentage=0.1):
-        from tqdm import tqdm
-        import torch
+                # Early stopping if patience is set and eval loss hasn't increased for >=patience epochs
+                if self.patience is not None:
+                    if self.sp_epoch - self.min_eval_loss_epoch >= self.patience:
+                        print(f"Eval loss hasn't increased for {self.sp_epoch - self.min_eval_loss_epoch} epochs, \
+                            stopping training after epoch {self.sp_epoch}.")
+                        break
 
+            self.sp_epoch += 1
+
+    def evaluate(self):
         self.model.eval()
-        eval_steps = round(eval_percentage * len(self.blocks))
+        eval_steps = len(self.data_loader_eval)
         bar = tqdm(total=eval_steps)
-        session_step = 0
-
-        # If we have a shuffle seed, shuffle beforehand
-        if self.shuffle_seed is not None:
-            random.seed(self.shuffle_seed-1)
-            self.block_order = [*range(len(self.blocks))]
-            random.shuffle(self.block_order)
 
         eval_loss = 0
-
-        while session_step < eval_steps:
-            block = self.blocks[self.block_order[session_step]]
-
-            input_ids = torch.LongTensor(block).unsqueeze(0).cuda().detach()
+        for i, (batch, attention_mask, labels) in enumerate(self.data_loader_eval):
+            # use cuda when on GPU
+            input_ids = batch.cuda().detach()
+            input_attention_mask = attention_mask.cuda().detach()
+            input_labels = labels.cuda().detach()
+            #input_ids = batch.detach()
+            #input_attention_mask = attention_mask.detach()
+            #input_labels = labels.detach()
 
             with torch.no_grad():
-                # Forward pass and optimize
-                outputs = self.model(input_ids=input_ids, labels=input_ids)
+                outputs = self.model(input_ids=input_ids, labels=input_labels, attention_mask=input_attention_mask)
                 loss = outputs.loss.item()
-
             eval_loss += loss
 
             # Discard tensor that was moved to GPU
             del input_ids
             torch.cuda.empty_cache()
-
-            bar.set_postfix({
-                "Loss"   : loss,
-            })
-            bar.update(1)
-            session_step += 1
+            
+            if i % self.logging_interval == 0:
+                bar.set_postfix({
+                    "Loss"   : loss,
+                })
+                bar.update(self.logging_interval)
 
         eval_loss /= eval_steps
-
         return eval_loss
