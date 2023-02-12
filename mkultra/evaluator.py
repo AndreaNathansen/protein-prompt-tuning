@@ -2,11 +2,15 @@ import math
 import os
 
 import torch
-from mkultra.checkpoint_loader import CheckpointLoader
 from tqdm import tqdm
+
+from mkultra.checkpoint_loader import CheckpointLoader
 
 
 class Evaluator:
+    """
+    Evaluates a model with a trained soft prompt. Currently supports perplexity evaluation.
+    """
     def __init__(self,
                 model,
                 is_prompt_tuned,
@@ -24,7 +28,11 @@ class Evaluator:
             self.model.set_soft_prompt(self.loaded_sp)
     
     def evaluate_perplexity(self):
-        # perplexity calculation as in https://huggingface.co/docs/transformers/perplexity just without sliding window
+        """
+        Perplexity calculation taken from https://huggingface.co/docs/transformers/perplexity, just without sliding window.
+        Currently calculates perplexity per token. TODO: support perplexity per amino acid, to allow comparison between
+        models with different vocabularies.
+        """
         self.model.eval()
         eval_steps = len(self.data_loader_test)
         bar = tqdm(total=eval_steps)
@@ -53,8 +61,6 @@ class Evaluator:
                 neg_log_likelihood = outputs.loss.to(dtype=torch.float32) * len_loss_included_tokens
                 eval_loss += outputs.loss.item()
             nlls.append(neg_log_likelihood)
-            # TODO: count amino acids (probably decode input seq again)
-            # here we currently count EOS token too
             num_amino_acids += len_loss_included_tokens
 
             instant_loss = outputs.loss.item()

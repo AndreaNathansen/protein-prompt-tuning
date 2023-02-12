@@ -1,5 +1,5 @@
 """
-Script for training the RITA model with details specified in a JSON config.
+Script for training the ProtGPT2 model with details specified in a JSON config.
 See folder training_configs/ for examples.
 Supports training with a number of random seeds for prompt initialization.
 """
@@ -15,7 +15,7 @@ from transformers import AdamW, AutoTokenizer
 
 import mkultra.sequence_loader as sequence_loader
 from mkultra.trainers import SoftPromptTrainer
-from mkultra.tuning import RITAPromptTuningLM
+from mkultra.tuning import GPT2PromptTuningLM
 from utils.train_utils import seed_everything
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
@@ -45,7 +45,7 @@ for i in range(config["num_iterations"]):
     current_init_seed = seed + i
     project_dir = os.path.join(project_dir_root, f"{sp_name}-seed-{current_init_seed}")
 
-    model = RITAPromptTuningLM.from_pretrained(config["model"]).half().to("cuda")
+    model = GPT2PromptTuningLM.from_pretrained(config["model"]).half().to("cuda")
     tokenizer = AutoTokenizer.from_pretrained(config["model"])
 
     dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<PAD>'])

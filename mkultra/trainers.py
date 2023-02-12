@@ -3,12 +3,18 @@ import os
 import random
 
 import torch
+from tqdm import tqdm
+
 from mkultra.checkpoint_loader import CheckpointLoader
 from mkultra.soft_prompt import SoftPrompt
-from tqdm import tqdm
 
 
 class SoftPromptTrainer:
+    """
+    A trainer for soft prompts. Stores only the respective soft prompt for checkpoint
+    (along with the optimizer state to allow continuing training after interruption)
+    and not the whole model.
+    """
     def __init__(self,
                  model,
                  optimizer_class,
@@ -16,7 +22,6 @@ class SoftPromptTrainer:
                  project_dir,
                  data_loader_train,
                  data_loader_eval,
-                 # number of steps for early stopping
                  patience=None,
                  n_tokens=20,
                  ema_alpha=0.1,
@@ -25,6 +30,29 @@ class SoftPromptTrainer:
                  prompt_init_seed=None,
                  shuffle_seed=None,
                  logging_interval=100):
+        """
+        Params:
+            model: A model that supports setting soft prompts, see tuning.py.
+            optimizer_class: The class of the optimizer to use. The optimizer has to be instantiated
+                after initializing/loading the soft prompt and adding it to the model as trainable parameters,
+                in order to avoid bugs/behaviour where the soft prompt does not get updated during training.
+                That is why this method takes the class and hyperparameters for the optimizer seperately.
+            optimizer_params: Hyperparameters for the optimizer, which have to match the optimizer class.
+            project_dir: The project directory.
+            data_loader_train/_val: Data loader for training and validation set.
+            patience: Number of epochs for early stopping.
+            n_tokens: Soft prompt length.
+            ema_alpha: Parameter for EMAl loss calculation (for logging training loss)
+            checkpoint_interval: The interval after which a checkpoint is saved (in epochs). An evaluation run on the 
+                validation set is done once per epoch.
+            init_from_vocab: If true, initialize a prompt from the model's vocabulary embeddings. If False, initialize
+                from a uniform distribution of range [-0.5, 0.5] (as in Lester et al. The power of scale for parameter-efficient
+                prompt tuning.)
+            prompt_init_seed: Random seed for prompt initialization.
+            shuffle_seed: Seed for dataset shuffling during training.
+            logging_interval: Interval for logging (in steps (1 step = 1 batch processed), not epochs)
+
+        """
         torch.cuda.empty_cache()
 
         self.model=model

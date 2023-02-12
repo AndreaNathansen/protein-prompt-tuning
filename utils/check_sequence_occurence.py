@@ -1,11 +1,17 @@
-from Bio import SeqIO
+"""
+Script for checking how many sequences from a smaller fasta file are present in another larger fasta file. The smaller
+fasta file has to fit in memory.
+"""
+
 import argparse
-import numpy as np
 from pathlib import Path
 
+import numpy as np
+from Bio import SeqIO
+
 parser = argparse.ArgumentParser(prog="Check sequence occurence in (expected) superset")
-parser.add_argument("-i", "--input-file", dest="input_file", help="path to the Fasta file that contains the subset dataset", required=True)
-parser.add_argument("-l", "--larger-file", dest="larger_file", help="path to the Fasta file that contains the superset dataset", required=True)
+parser.add_argument("-i", "--input-file", dest="input_file", help="path to the Fasta file that contains the smaller dataset", required=True)
+parser.add_argument("-l", "--larger-file", dest="larger_file", help="path to the Fasta file that contains the larger dataset", required=True)
 args = parser.parse_args()
 
 subset_seq_ids = np.array([seq.id.split('|')[0] for seq in SeqIO.parse(args.input_file, "fasta")])

@@ -1,7 +1,13 @@
+"""
+Script that we used to measure how many generated sequences are classified by ProtCNN
+as belonging to the target Pfam family. Currently runs a sliding window of a fixed size and a fixed stride.
+Taken (and adapted) from https://github.com/google-research/google-research/blob/master/using_dl_to_annotate_protein_universe/Using_Deep_Learning_to_Annotate_the_Protein_Universe.ipynb
+(the official implementation of Bileschi et al. Using deep learning to annotate the protein universe.)
+"""
+
 import argparse
 import json
 import os
-from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -9,12 +15,16 @@ import tensorflow.compat.v1 as tf
 from Bio import SeqIO
 # Suppress noisy log messages.
 from tensorflow.python.util import deprecation
+from tqdm import tqdm
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--dataset", dest="dataset", help="path to the JSON config file", required=True)
+parser.add_argument("--window-size", dest="window_size", help="Size of the sliding window for domain calling", required=True)
+parser.add_argument("--window-stride", dest="window_stride", help="Stride of the sliding window for domain calling", required=True)
+parser.add_argument("--family", dest="family", help="Pfam name of the target family", required=True)
 args = parser.parse_args()
 
 AMINO_ACID_VOCABULARY = [
@@ -119,12 +129,12 @@ def predict_families_for_fasta_file(filename):
     for j, record in enumerate(dataset):
         seq = str(record.seq)
         subseqs = []
-        if len(seq) > 120:
-            for i in range(0, len(seq) - 110, 10):
-                if i + 120 > len(seq):
-                    subseq  = seq[len(seq) - 120 : len(seq)]
+        if len(seq) > args.window_size:
+            for i in range(0, len(seq) - (args.window_size - args.window_stride), args.window_stride):
+                if i + args.window_size > len(seq):
+                    subseq  = seq[len(seq) - args.window_size : len(seq)]
                 else:
-                    subseq = seq[i:i+120]
+                    subseq = seq[i:i+args.window_size]
                 subseqs.append(subseq)
         else:
             subseqs.append(seq)
@@ -143,7 +153,7 @@ def predict_families_for_fasta_file(filename):
             vocab = np.array(json.loads(f.read()))
         protein_family_idcs = np.argmax(confidences_by_class, axis=1)
         predicted_families = vocab[protein_family_idcs]
-        if 'PF03272' in predicted_families:
+        if args.family in predicted_families:
             is_family = True
         else:
             is_family = False

@@ -4,6 +4,11 @@ from torch.utils.data import Dataset
 
 
 class FastaDataset(Dataset):
+    """
+    Loads sequences from a fasta file and prepares them as tokenized and padded blocks for training/evaluation.
+    Can be passed into a torch.utils.data.DataLoader as dataset.
+    Allows exclusion of blocks that are filled with more padding tokens than specified by max_pad_token_fraction.
+    """
     def __init__(self, filename, tokenizer, block_size, pad_token, max_pad_token_fraction=1.0):
         records = SeqIO.parse(filename, "fasta")
         sequences_encoded = [tokenizer.encode(str(record.seq)) for record in records]

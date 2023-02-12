@@ -1,22 +1,26 @@
-from Bio.Seq import Seq
 import numpy as np
+from Bio.Seq import Seq
 
 replacement_B = ['D', 'N']
 replacement_Z = ['E', 'Q']
 replacement_J = ['I', 'L']
 
 def remove_X(dataset):
-    # Data preparation as in Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.
-    # Remove all sequences with an X.
+    """
+    Data preparation as in Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.
+    Remove all sequences with an X.
+    """
     return [record for record in dataset if not 'X' in record.seq]
     
 
 
 def replace_amino_acids(random_seed, dataset):
+    """
+    Data preparation as in Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.
+    Randomly map amino acids B to (D,N), Z to (E, Q), J to (I, L).
+    However, we do not add each sequence's reverse to the dataset as done by Hesslow et al.
+    """
     prepared_sequences = []
-    # Data preparation as in Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.
-    # Randomly map amino acids B to (D,N), Z to (E, Q), J to (I, L).
-    # However, we do not add each sequence's reverse to the dataset as done by Hesslow et al.
     rng = np.random.default_rng(seed=random_seed)
     prepared_sequences = []
     for record in dataset:
@@ -39,10 +43,3 @@ def replace_amino_acids(random_seed, dataset):
         record.seq = Seq(record_seq)
         prepared_sequences.append(record)
     return prepared_sequences
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="Prompt Tuning")
-    parser.add_argument("--dataset-path", dest="dataset_path", help="path to the Fasta file", required=True)
-    args = parser.parse_args()
-    
-    clean_sequences(args.dataset_path)

@@ -1,16 +1,23 @@
+"""
+Perplexity evaluation for a prompt-tuned RITA model on the training and validation set for a training run
+and on the test set. The prompt-tuned model along with the datasets can be
+loaded by specifying the config (see folder training_configs/) that was used for training the prompt.
+"""
+
 import argparse
 import csv
 import json
 import os
 from pathlib import Path
 
-import mkultra.sequence_loader as sequence_loader
 import numpy as np
 import torch
-from mkultra.evaluator import Evaluator
-from mkultra.tuning import RITAPromptTuningLM
 from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoTokenizer
+
+import mkultra.sequence_loader as sequence_loader
+from mkultra.evaluator import Evaluator
+from mkultra.tuning import RITAPromptTuningLM
 from utils.train_utils import seed_everything
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")

@@ -4,14 +4,24 @@ import json
 import os
 from pathlib import Path
 
+"""
+Script for generating a number of sequences with a prompt-tuned RITA model and the respective
+base model (= without prompt). The prompt-tuned model along with its base model can be
+loaded by specifying the config (see folder training_configs/) that was used for training the prompt.
+Currently, sequences are generated from scratch without any starting amino acid.
+Also, currently generates 193 sequences (size of our main test set) in steps of 10. TODO: make this flexible.
+The generation sampling parameters are taken from https://github.com/lightonai/RITA
+"""
+
 import numpy as np
 import torch
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
 from mkultra.checkpoint_loader import CheckpointLoader
 from mkultra.tuning import RITAPromptTuningLM
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 from utils.train_utils import seed_everything
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")

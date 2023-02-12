@@ -1,14 +1,24 @@
-from transformers import GPT2LMHeadModel, GPTNeoForCausalLM, GPTJForCausalLM, TextGenerationPipeline, AutoModelForCausalLM, AutoTokenizer
+from transformers import (AutoModelForCausalLM, AutoTokenizer, GPT2LMHeadModel,
+                          GPTJForCausalLM, GPTNeoForCausalLM,
+                          TextGenerationPipeline)
+
 # Workaround so that RITA import works
 AutoModelForCausalLM.from_pretrained("lightonai/RITA_s", trust_remote_code=True)
 AutoTokenizer.from_pretrained("lightonai/RITA_s")
-from transformers_modules.lightonai.RITA_s.fced662eadd2b7099a3b92a88365dfc3c98eb3da.rita_modeling import RITAModelForCausalLM
-from mkultra.soft_prompt import SoftPrompt
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
+from transformers_modules.lightonai.RITA_s.fced662eadd2b7099a3b92a88365dfc3c98eb3da.rita_modeling import \
+    RITAModelForCausalLM
+
+from mkultra.soft_prompt import SoftPrompt
+
 
 class PromptTuningMixin:
+    """
+    Base class for models that should be prompt-tuned. Some internal processing details are model-specific,
+    so this class can be subclassed in that case.
+    """
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, **kwargs):
         model = super().from_pretrained(pretrained_model_name_or_path, **kwargs)
@@ -21,6 +31,10 @@ class PromptTuningMixin:
         return model
 
     def initialize_soft_prompt(self, n_tokens = 20, init_from_vocab=True, prompt_init_seed=None):
+        """
+        Initializes a soft prompt either from model vocabulary or from a uniform distribution of range [-0.5, 0.5]
+        (as in Lester et al. The power of scale for parameter-efficient prompt tuning.)
+        """
         init_rng = np.random.default_rng(prompt_init_seed)
         if init_from_vocab:
             vocab_size = self.transformer.get_input_embeddings().weight.shape[0]
@@ -69,7 +83,7 @@ class PromptTuningMixin:
         else:
             lb = labels
 
-        # Add '-100's (prevent loss calculation where the learned embed would be)
+        # Add '-100's (prevent loss calculation where the learned embedding would be)
         n_batches = lb.shape[0]
         return torch.cat([torch.full((n_batches,n_tokens), -100).to(self.device), lb], dim=1)
 
@@ -133,6 +147,9 @@ class PromptTuningMixin:
         raise NotImplementedError
 
 class RITAPromptTuningLM(PromptTuningMixin, RITAModelForCausalLM):
+    """
+    Prompt tuning model for RITA.
+    """
     def __init__(self, config):
         super().__init__(config)
     
@@ -150,6 +167,9 @@ class RITAPromptTuningLM(PromptTuningMixin, RITAModelForCausalLM):
 
 
 class GPT2PromptTuningLM(PromptTuningMixin, GPT2LMHeadModel):
+    """
+    Prompt tuning model for GPT2.
+    """
     def __init__(self, config):
         super().__init__(config)
 
@@ -163,11 +183,3 @@ class GPT2PromptTuningLM(PromptTuningMixin, GPT2LMHeadModel):
 
     def _get_input_ids_if_required(self, input_ids):
         return None
-
-class GPTNeoPromptTuningLM(PromptTuningMixin, GPTNeoForCausalLM):
-    def __init__(self, config):
-        super().__init__(config)
-
-class GPTJPromptTuningLM(PromptTuningMixin, GPTJForCausalLM):
-    def __init__(self, config):
-        super().__init__(config)

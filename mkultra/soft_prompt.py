@@ -1,22 +1,27 @@
-import json
-import uuid
-import datetime
-import torch
-from typing import Dict, Any, Union
-import pickle
 import base64
+import datetime
+import json
+import pickle
+import uuid
+from typing import Any, Dict, Union
+
+import torch
+
 
 class SoftPrompt():
     """
     A soft prompt.
 
+    If you are using inference mode (that we currently not support):
     After loading any number of soft prompts, make sure to prime your tokenizer with
     tokenizer.add_special_tokens(SoftPrompt.get_special_tokens()).
 
     Attributes:
         _tensor: The underlying tensor.
         _metadata: A metadata dictionary. Keys are:
-                   'name', 'uuid', 'description', 'epoch'
+                   'name', 'uuid', 'description', 'epoch', 'loss', 'eval_loss',
+                   'min_eval_loss', 'min_eval_loss_epoch' (to load checkpoint with minimum
+                   validation loss after training)
 
     Class attributes:
         _loaded_sps: A static dictionary where
