@@ -14,6 +14,8 @@ They can be configured with parameters specified in a JSON config, see `training
 Trainer documentation in `mkultra/trainers.py`.
 The training configurations in `training_configs/` are the ones that we used for our paper.
 
+An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`
+
 ## Datasets
 You can train the model with Fasta datasets if you use the `FastaDataset` class (`mkultra.sequence_loader.py`)
 as dataset input for a PyTorch `DataLoader`.
@@ -37,8 +39,6 @@ The script we used for that is `protcnn.py`, taken and adapted from the [officia
 
 ## Sequence generation
 For generating sequences, instantiate a base model and then load and add a trained prompt, as for example in `RITA_prompt_sequence_generation.py`.
-
-TODO: add ipynb example notebooks
 
 
 ## Limitations (for now)
