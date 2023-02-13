@@ -6,7 +6,7 @@ For setup, you can reconstruct our conda environment by the `environment.yaml` f
 
 ## Models
 This implementation currently support ProtGPT2 (Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.)
-and RITA (Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.). 
+and RITA (Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.).  See `mkultra/tuning.py` for implementation details.
 
 ## Training
 Training scripts for RITA and ProtGPT2 are `RITA_prompt_tuning.py` and `ProtGPT2_prompt_tuning.py`, respectively.
@@ -38,7 +38,7 @@ We further evaluated the amount of generated sequences that were classified by P
 The script we used for that is `protcnn.py`, taken and adapted from the [official ProtCNN notebook](https://github.com/google-research/google-research/blob/master/using_dl_to_annotate_protein_universe/Using_Deep_Learning_to_Annotate_the_Protein_Universe.ipynb). As ProtCNN uses Tensorflow and we wanted to keep it separate from our other scripts, we created an extra conda environment for it, specified in `environment-protcnn.yml`.
 
 ## Sequence generation
-For generating sequences, instantiate a base model and then load and add a trained prompt, as for example in `RITA_prompt_sequence_generation.py`.
+For generating sequences, instantiate a prompt tuning model (see `mkultra/tuning.py`) and then load and add a prompt (`see mkultra/checkpoint_loader.py`) that was trained for that type of model, as for example in `RITA_prompt_sequence_generation.py`.
 
 
 ## Limitations (for now)
