@@ -21,8 +21,8 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--dataset", dest="dataset", help="path to the JSON config file", required=True)
-parser.add_argument("--window-size", dest="window_size", help="Size of the sliding window for domain calling", required=True)
-parser.add_argument("--window-stride", dest="window_stride", help="Stride of the sliding window for domain calling", required=True)
+parser.add_argument("--window-size", dest="window_size", type=int, help="Size of the sliding window for domain calling", required=True)
+parser.add_argument("--window-stride", dest="window_stride", type=int, help="Stride of the sliding window for domain calling", required=True)
 parser.add_argument("--family", dest="family", help="Pfam name of the target family", required=True)
 args = parser.parse_args()
 
