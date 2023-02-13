@@ -14,7 +14,7 @@ They can be configured with parameters specified in a JSON config, see `training
 Trainer documentation in `mkultra/trainers.py`.
 The training configurations in `training_configs/` are the ones that we used for our paper.
 
-An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`
+An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`, open in Colab [here](https://colab.research.google.com/github/AndreaNathansen/protein-prompt-tuning/blob/main/RITA_prompt_tuning_example.ipynb).
 
 ## Datasets
 You can train the model with Fasta datasets if you use the `FastaDataset` class (`mkultra.sequence_loader.py`)
