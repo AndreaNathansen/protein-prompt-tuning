@@ -18,7 +18,6 @@ from tensorflow.python.util import deprecation
 from tqdm import tqdm
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--dataset", dest="dataset", help="path to the JSON config file", required=True)

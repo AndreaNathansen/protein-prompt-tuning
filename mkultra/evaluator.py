@@ -70,6 +70,6 @@ class Evaluator:
             bar.set_postfix({
                 "Loss"   : instant_loss,
             })
-        print(eval_loss / eval_steps)
+        print(f"Loss: {eval_loss / eval_steps}")
         perplexity = torch.exp(torch.stack(nlls).sum() / num_amino_acids)
         return perplexity.item()

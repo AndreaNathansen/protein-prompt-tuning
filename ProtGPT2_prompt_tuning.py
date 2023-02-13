@@ -48,10 +48,10 @@ for i in range(config["num_iterations"]):
     model = GPT2PromptTuningLM.from_pretrained(config["model"]).half().to("cuda")
     tokenizer = AutoTokenizer.from_pretrained(config["model"])
 
-    dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<PAD>'])
+    dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'])
     dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
 
-    dataset_val = sequence_loader.FastaDataset(config["dataset_file_validation"], tokenizer, block_size, tokenizer.vocab['<PAD>'])
+    dataset_val = sequence_loader.FastaDataset(config["dataset_file_validation"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'])
     dataloader_val = DataLoader(dataset_val, batch_size=config["batch_size"], shuffle=False)
 
     optimizer_params = {"lr": config["learning_rate"]}
