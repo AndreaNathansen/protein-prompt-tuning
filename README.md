@@ -19,7 +19,7 @@ An example notebook for training a prompt for RITA is `RITA_prompt_tuning_exampl
 ## Datasets
 You can train the model with Fasta datasets if you use the `FastaDataset` class (`mkultra.sequence_loader.py`)
 as dataset input for a PyTorch `DataLoader`.
-Dataset preprocessing as in RITA can be found in the `utils` folder (TODO: add exact scripts).
+Dataset preprocessing as in RITA can be found in the `utils` folder (TODO: add reference to exact scripts).
 
 We also provide the datasets that we used for our experiments in the `datasets/` folder.
 They contain sequences from the Pfam family PF03272.
@@ -45,7 +45,3 @@ wget https://storage.googleapis.com/brain-genomics-public/research/proteins/pfam
 
 ## Sequence generation
 For generating sequences, instantiate a prompt tuning model (see `mkultra/tuning.py`) and then load and add a prompt (`see mkultra/checkpoint_loader.py`) that was trained for that type of model, as for example in `RITA_prompt_sequence_generation.py`.
-
-
-## Limitations (for now)
-- mkultra syncs a set of special tokens between its tokenizers the scenes. Adding your own tokens may result in unexpected behaviour.
