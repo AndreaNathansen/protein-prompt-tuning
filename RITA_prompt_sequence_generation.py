@@ -26,6 +26,8 @@ from utils.train_utils import seed_everything
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--config", dest="config", help="path to the JSON config file", required=True)
+parser.add_argument("--num-sequences", dest="num_sequences", type=int, help="number of sequences to generate", required=True)
+parser.add_argument("--batch-size", dest="batch_size", type=int, help="amount of sequences to generate at once", required=True)
 args = parser.parse_args()
 
 with open(args.config) as config_file:
@@ -44,7 +46,10 @@ if not os.path.exists(project_dir_root):
     os.makedirs(project_dir_root)
 
 block_size = config["block_size"]-config["n_tokens"]
-
+num_sequences = args.num_sequences
+batch_size = args.batch_size
+num_batches = np.ceil(num_sequences / batch_size)
+last_batch_size = num_sequences % batch_size
 
 torch.cuda.empty_cache()
 tokenizer = AutoTokenizer.from_pretrained(config["model"])
@@ -53,17 +58,17 @@ tokenizer = AutoTokenizer.from_pretrained(config["model"])
 seed_everything(seed)
 base_model = AutoModelForCausalLM.from_pretrained(config["model"], trust_remote_code=True).half().to("cuda")
 
-for n in range(20):
-    if n == 19:
-        num_seq=3
+for n in range(num_batches):
+    if n == num_batches - 1:
+        num_seq = last_batch_size
     else:
-        num_seq = 10
+        num_seq = batch_size
     # leave out the EOS token that the RITA tokenizer always appends
     base_input_ids = tokenizer("<EOS>", return_tensors="pt").input_ids[:, :-1].to("cuda")
-    base_output = base_model.generate(input_ids=base_input_ids, max_length=1014, do_sample=True, top_k=950, repetition_penalty=1.2, 
+    base_output = base_model.generate(input_ids=base_input_ids, max_length=block_size, do_sample=True, top_k=950, repetition_penalty=1.2, 
                         num_return_sequences=num_seq, eos_token_id=2)
     base_sequences = [tokenizer.decode(output_ids) for output_ids in base_output]                   
-    base_sequences_records = [SeqRecord(seq=Seq(sequence.replace('<EOS>','').replace(' ', '')), id=str(n*10+j), name=f'generated_prot_{j}') for j, sequence in enumerate(base_sequences)]
+    base_sequences_records = [SeqRecord(seq=Seq(sequence.replace('<EOS>','').replace(' ', '')), id=str(n*batch_size+j), name=f'generated_prot_{j}') for j, sequence in enumerate(base_sequences)]
     with open(os.path.join("experiment_results/generated_sequences", f"basemodel-{model_name}-generated.fasta"), 'a') as f:
         SeqIO.write(base_sequences_records, f, "fasta")
 
@@ -89,17 +94,17 @@ for i in range(config["num_iterations"]):
     loaded_sp = checkpoint_loader.load_best_checkpoint()
     model.set_soft_prompt(loaded_sp)
 
-    for n in range(20):
-        if n == 19:
-            num_seq=3
+    for n in range(num_batches):
+        if n == num_batches - 1:
+            num_seq = last_batch_size
         else:
-            num_seq = 10
+            num_seq = batch_size
         # leave out the EOS token that the RITA tokenizer always appends
         input_ids = tokenizer("<EOS>", return_tensors="pt").input_ids[:, :-1].to("cuda")
-        output = model.generate(input_ids=input_ids, max_length=1014, do_sample=True, top_k=950, repetition_penalty=1.2, 
+        output = model.generate(input_ids=input_ids, max_length=block_size, do_sample=True, top_k=950, repetition_penalty=1.2, 
                             num_return_sequences=num_seq, eos_token_id=2)
         sequences = [tokenizer.decode(output_ids) for output_ids in output]                   
-        sequences_records = [SeqRecord(seq=Seq(sequence.replace('<EOS>','').replace(' ', '')), id=str(n*10+j)) for j, sequence in enumerate(sequences)]
+        sequences_records = [SeqRecord(seq=Seq(sequence.replace('<EOS>','').replace(' ', '')), id=str(n*batch_size+j)) for j, sequence in enumerate(sequences)]
         with open(os.path.join("experiment_results/generated_sequences", f"{sp_name}-seed-{i}-generated.fasta"), 'a') as f:
             SeqIO.write(sequences_records, f, "fasta")
 
