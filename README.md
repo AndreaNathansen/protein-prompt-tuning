@@ -5,8 +5,8 @@ The prompt tuning method was developed by Lester et al., see [Lester et al. The 
 For setup, you can reconstruct our conda environment by the `environment.yaml` file.
 
 ## Models
-This implementation currently support ProtGPT2 ( [Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.](https://doi.org/10.1038/s41467-022-32007-7) )
-and RITA ( [Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.](https://arxiv.org/abs/2205.05789) ).  See `mkultra/tuning.py` for implementation details.
+This implementation currently support ProtGPT2 ([Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.](https://doi.org/10.1038/s41467-022-32007-7))
+and RITA ([Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.](https://arxiv.org/abs/2205.05789)).  See `mkultra/tuning.py` for implementation details.
 
 ## Training
 Training scripts for RITA and ProtGPT2 are `RITA_prompt_tuning.py` and `ProtGPT2_prompt_tuning.py`, respectively.
@@ -24,7 +24,7 @@ Dataset preprocessing as in RITA can be found in the `utils` folder (TODO: add r
 We also provide the datasets that we used for our experiments in the `datasets/` folder.
 They contain sequences from the Pfam family PF03272.
 The dataset (`datasets/InterProUniprotPF03272.fasta`) was downloaded from [InterPro](https://www.ebi.ac.uk/interpro/entry/pfam/PF03272/protein/UniProt/)
-on January 5, 2023 (Paysan-Lafosse et al. InterPro in 2022.). Then, we removed all sequences containing an X, which created the dataset `InterProUniprotPF03272_Xremoved.fasta`.
+on January 5, 2023 ([Paysan-Lafosse et al. InterPro in 2022.](https://doi.org/10.1093/nar/gkac993)). Then, we removed all sequences containing an X, which created the dataset `InterProUniprotPF03272_Xremoved.fasta`.
 We clustered our data with [MMseqs2](https://github.com/soedinglab/MMseqs2)([Steinegger et al. MMseqs2 enables sensitive protein sequence searching for the analysis of massive data sets.](https://doi.org/10.1038/nbt.3988) And: [Steinegger et al. Clustering huge protein sequence sets in linear time.](https://doi.org/10.1038/s41467-018-04964-5)). The datasets clustered with a sequence similarity threshold of 100%,
 which were our main datasets, are `InterProUniprotPF03272prepared_<train|validation|test>.fasta`. Datasets clustered with different
 thresholds can be found as `InterProUniprotPF03272_<threshold>_<train|validation|test>.fasta`
