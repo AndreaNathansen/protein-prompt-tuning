@@ -48,7 +48,7 @@ if not os.path.exists(project_dir_root):
 block_size = config["block_size"]-config["n_tokens"]
 num_sequences = args.num_sequences
 batch_size = args.batch_size
-num_batches = np.ceil(num_sequences / batch_size)
+num_batches = int(np.ceil(num_sequences / batch_size))
 last_batch_size = num_sequences % batch_size
 
 torch.cuda.empty_cache()
