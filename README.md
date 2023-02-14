@@ -5,10 +5,8 @@ The prompt tuning method was developed by Lester et al., see [Lester et al. The 
 For setup, you can reconstruct our conda environment by the `environment.yaml` file.
 
 ## Models
-This implementation currently support ProtGPT2 ([Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.](https://doi.org/10.1038/
-s41467-022-32007-7))
-and RITA ([Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.](https://arxiv.org/abs/
-2205.05789)).  See `mkultra/tuning.py` for implementation details.
+This implementation currently support ProtGPT2 ( [Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.](https://doi.org/10.1038/s41467-022-32007-7) )
+and RITA ( [Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.](https://arxiv.org/abs/2205.05789) ).  See `mkultra/tuning.py` for implementation details.
 
 ## Training
 Training scripts for RITA and ProtGPT2 are `RITA_prompt_tuning.py` and `ProtGPT2_prompt_tuning.py`, respectively.
