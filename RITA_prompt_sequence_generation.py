@@ -69,7 +69,7 @@ for n in range(num_batches):
                         num_return_sequences=num_seq, eos_token_id=2)
     base_sequences = [tokenizer.decode(output_ids) for output_ids in base_output]                   
     base_sequences_records = [SeqRecord(seq=Seq(sequence.replace('<EOS>','').replace(' ', '')), id=str(n*batch_size+j), name=f'generated_prot_{j}') for j, sequence in enumerate(base_sequences)]
-    with open(os.path.join("experiment_results/generated_sequences", f"basemodel-{model_name}-generated.fasta"), 'a') as f:
+    with open(os.path.join("generated_sequences", f"basemodel-{model_name}-generated.fasta"), 'a') as f:
         SeqIO.write(base_sequences_records, f, "fasta")
 
     del base_input_ids
@@ -105,7 +105,7 @@ for i in range(config["num_iterations"]):
                             num_return_sequences=num_seq, eos_token_id=2)
         sequences = [tokenizer.decode(output_ids) for output_ids in output]                   
         sequences_records = [SeqRecord(seq=Seq(sequence.replace('<EOS>','').replace(' ', '')), id=str(n*batch_size+j)) for j, sequence in enumerate(sequences)]
-        with open(os.path.join("experiment_results/generated_sequences", f"{sp_name}-seed-{i}-generated.fasta"), 'a') as f:
+        with open(os.path.join("generated_sequences", f"{sp_name}-seed-{i}-generated.fasta"), 'a') as f:
             SeqIO.write(sequences_records, f, "fasta")
 
         del input_ids

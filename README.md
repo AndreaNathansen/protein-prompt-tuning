@@ -14,12 +14,12 @@ They can be configured with parameters specified in a JSON config, see `training
 Trainer documentation in `mkultra/trainers.py`.
 The training configurations in `training_configs/` are the ones that we used for our paper.
 
-An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`
+An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`, open in Colab [here](https://colab.research.google.com/github/AndreaNathansen/protein-prompt-tuning/blob/main/RITA_prompt_tuning_example.ipynb).
 
 ## Datasets
 You can train the model with Fasta datasets if you use the `FastaDataset` class (`mkultra.sequence_loader.py`)
 as dataset input for a PyTorch `DataLoader`.
-Dataset preprocessing as in RITA can be found in the `utils` folder (TODO: add exact scripts).
+Dataset preprocessing as in RITA can be found in the `utils` folder (TODO: add reference to exact scripts).
 
 We also provide the datasets that we used for our experiments in the `datasets/` folder.
 They contain sequences from the Pfam family PF03272.
@@ -45,7 +45,3 @@ wget https://storage.googleapis.com/brain-genomics-public/research/proteins/pfam
 
 ## Sequence generation
 For generating sequences, instantiate a prompt tuning model (see `mkultra/tuning.py`) and then load and add a prompt (`see mkultra/checkpoint_loader.py`) that was trained for that type of model, as for example in `RITA_prompt_sequence_generation.py`.
-
-
-## Limitations (for now)
-- mkultra syncs a set of special tokens between its tokenizers the scenes. Adding your own tokens may result in unexpected behaviour.
