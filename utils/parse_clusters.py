@@ -2,8 +2,8 @@ from Bio import SeqIO
 import os
 
 class Cluster:
-    def __init__(self, representative: str):
-        self.representative = representative
+    def __init__(self, representative_id: str):
+        self.representative_id = representative_id
         self.members = []
     
     def __len__(self):
@@ -13,6 +13,11 @@ class Cluster:
         self.members.append(member)
 
 def parse_clusters(filename):
+    """
+    Parses the *_all_seqs.fasta file output of mmseqs2 for further use.
+    The complete filename is required as parameter.
+    The representative member of a cluster is always the first member.
+    """
     clusters = []
     cluster = None
 
