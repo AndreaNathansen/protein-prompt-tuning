@@ -19,7 +19,8 @@ An example notebook for training a prompt for RITA is `RITA_prompt_tuning_exampl
 ## Datasets
 You can train the model with Fasta datasets if you use the `FastaDataset` class (`mkultra.sequence_loader.py`)
 as dataset input for a PyTorch `DataLoader`.
-Dataset preprocessing as in RITA can be found in the `utils` folder (TODO: add reference to exact scripts).
+Dataset preprocessing as in RITA can be done with the `prepare_dataset.ipynb` notebook in the `utils` folder.
+Also, have a look into the script `utils/clustering.sh` to see the configuration we used to cluster our datasets using [MMseqs2](https://github.com/soedinglab/MMseqs2).
 
 We also provide the datasets that we used for our experiments in the `datasets/` folder.
 They contain sequences from the Pfam family PF03272.
