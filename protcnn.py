@@ -146,16 +146,20 @@ def predict_families_for_fasta_file(filename):
         seq = str(record.seq)
         subseqs = split_sequence_into_windows(seq)
         max_subseq_length = max([len(s) for s in subseqs])
+        padded_one_hot_sequences = [pad_one_hot_sequence(residues_to_one_hot(seq), max_subseq_length) for seq in subseqs]
         with graph.as_default():
-            confidences_by_class = sess.run(
-                class_confidence_signature_tensor_name,
-                {
-                    # Note that this function accepts a batch of sequences which
-                    # can speed up inference when running on many sequences.
-                    sequence_input_tensor_name: [pad_one_hot_sequence(residues_to_one_hot(seq), max_subseq_length) for seq in subseqs],
-                    sequence_lengths_input_tensor_name: [len(seq) for seq in subseqs],
-                }
-            )
+            batch_size = 64
+            for i in range(0, len(padded_one_hot_sequences), batch_size):
+              batch = padded_one_hot_sequences[i:i+batch_size]
+              confidences_by_class = sess.run(
+                  class_confidence_signature_tensor_name,
+                  {
+                      # Note that this function accepts a batch of sequences which
+                      # can speed up inference when running on many sequences.
+                      sequence_input_tensor_name: batch,
+                      sequence_lengths_input_tensor_name: [len(seq) for seq in batch],
+                  }
+              )
         # Load vocab
         with open('trained_model_pfam_32.0_vocab.json') as f:
             vocab = np.array(json.loads(f.read()))
