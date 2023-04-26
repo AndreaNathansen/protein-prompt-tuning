@@ -1,6 +1,6 @@
 """
 Script that we used to measure how many generated sequences are classified by ProtCNN
-as belonging to the target Pfam family. Currently runs a sliding window of a fixed size and a fixed stride.
+as belonging to the target Pfam family.
 Taken (and adapted) from https://github.com/google-research/google-research/blob/master/using_dl_to_annotate_protein_universe/Using_Deep_Learning_to_Annotate_the_Protein_Universe.ipynb
 (the official implementation of Bileschi et al. Using deep learning to annotate the protein universe.)
 """
@@ -21,7 +21,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--dataset", dest="dataset", help="path to the JSON config file", required=True)
-parser.add_argument("--window-size", dest="window_size", type=int, help="Size of the sliding window for domain calling", required=True)
+parser.add_argument("--window-size", dest="window_size", type=int, help="Size of the sliding window for domain calling. If omitted, every possible window size (1 to the sequence's length) is used")
 parser.add_argument("--window-stride", dest="window_stride", type=int, help="Stride of the sliding window for domain calling", required=True)
 parser.add_argument("--family", dest="family", help="Pfam name of the target family", required=True)
 args = parser.parse_args()
@@ -121,22 +121,30 @@ class_confidence_signature_tensor_name = class_confidence_signature.outputs['out
 sequence_input_tensor_name = saved_model.signature_def['confidences'].inputs['sequence'].name
 sequence_lengths_input_tensor_name = saved_model.signature_def['confidences'].inputs['sequence_length'].name
 
+def split_sequence_into_windows(seq, window_size = args.window_size):
+  subseqs = []
+  if window_size is None:
+    for i in range(1,len(seq)):
+      subseqs.extend(split_sequence_into_windows(seq, i))
+  else:
+    if len(seq) > window_size:
+      for i in range(0, len(seq) - (window_size - args.window_stride), args.window_stride):
+        if i + window_size > len(seq):
+          subseq  = seq[len(seq) - window_size : len(seq)]
+        else:
+          subseq = seq[i:i+window_size]
+        subseqs.append(subseq)
+    else:
+      subseqs.append(seq)
+  return subseqs
+
 def predict_families_for_fasta_file(filename):
     dataset = list(SeqIO.parse(filename, "fasta"))
     results_df = pd.DataFrame(columns=["id", "is_family"], index=range(len(dataset)))
     bar = tqdm(total=len(dataset))
     for j, record in enumerate(dataset):
         seq = str(record.seq)
-        subseqs = []
-        if len(seq) > args.window_size:
-            for i in range(0, len(seq) - (args.window_size - args.window_stride), args.window_stride):
-                if i + args.window_size > len(seq):
-                    subseq  = seq[len(seq) - args.window_size : len(seq)]
-                else:
-                    subseq = seq[i:i+args.window_size]
-                subseqs.append(subseq)
-        else:
-            subseqs.append(seq)
+        subseqs = split_sequence_into_windows(seq)
         with graph.as_default():
             confidences_by_class = sess.run(
                 class_confidence_signature_tensor_name,
