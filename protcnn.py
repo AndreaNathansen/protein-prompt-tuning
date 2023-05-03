@@ -145,11 +145,17 @@ def predict_families_for_fasta_file(filename):
     dataset = list(SeqIO.parse(filename, "fasta"))
     results_df = pd.DataFrame(columns=["id", "is_family"], index=range(len(dataset)))
     bar = tqdm(total=len(dataset))
+
+    # Load vocab
+    with open('trained_model_pfam_32.0_vocab.json') as f:
+        vocab = np.array(json.loads(f.read()))
+    
     for j, record in enumerate(dataset):
         seq = str(record.seq)
         subseqs = split_sequence_into_windows(seq)
         max_subseq_length = max([len(s) for s in subseqs])
         padded_one_hot_sequences = [pad_one_hot_sequence(residues_to_one_hot(seq), max_subseq_length) for seq in subseqs]
+        is_family = False
         with graph.as_default():
             batch_size = 64
             for i in range(0, len(padded_one_hot_sequences), batch_size):
@@ -163,15 +169,10 @@ def predict_families_for_fasta_file(filename):
                       sequence_lengths_input_tensor_name: [len(seq) for seq in batch],
                   }
               )
-        # Load vocab
-        with open('trained_model_pfam_32.0_vocab.json') as f:
-            vocab = np.array(json.loads(f.read()))
-        protein_family_idcs = np.argmax(confidences_by_class, axis=1)
-        predicted_families = vocab[protein_family_idcs]
-        if args.family in predicted_families:
-            is_family = True
-        else:
-            is_family = False
+              protein_family_idcs = np.argmax(confidences_by_class, axis=1)
+              predicted_families = vocab[protein_family_idcs]
+              if args.family in predicted_families:
+                  is_family = True
         results_df.iloc[j] = [record.id, is_family]
         bar.update(1)
     return results_df
