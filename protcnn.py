@@ -180,7 +180,7 @@ def predict_families_for_fasta_file(filename):
     return results_df
 
 results_df = predict_families_for_fasta_file(args.dataset)
-if args.windowsize is not None:
+if args.window_size is not None:
   results_df.to_csv(args.dataset + f"_protcnn_results_windowsize{args.window_size}.csv", index=False)
 else:
   results_df.to_csv(args.dataset + f"_protcnn_results_flexible_windowsize.csv", index=False)
