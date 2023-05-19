@@ -154,8 +154,9 @@ def predict_families_for_fasta_file(filename):
         seq = str(record.seq)
         subseqs = split_sequence_into_windows(seq)
         is_family = False
+        batch_size = 64
+        batch_bar = tqdm(total=np.ceil(len(subseqs) / batch_size))
         with graph.as_default():
-            batch_size = 64
             for i in range(0, len(subseqs), batch_size):
               batch_sequences = subseqs[i:i+batch_size]
               max_subseq_length = max([len(s) for s in batch_sequences])
@@ -173,6 +174,7 @@ def predict_families_for_fasta_file(filename):
               predicted_families = vocab[protein_family_idcs]
               if args.family in predicted_families:
                   is_family = True
+        batch_bar.update(1)
         results_df.iloc[j] = [record.id, is_family]
         bar.update(1)
     return results_df
