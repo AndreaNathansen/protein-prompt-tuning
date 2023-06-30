@@ -108,6 +108,9 @@ def _test_pad_one_hot():
   actual = pad_one_hot_sequence(input_one_hot, 7)
 
   np.testing.assert_allclose(expected, actual)
+
+assert len(tf.config.list_physical_devices('GPU')) > 0, "No GPU detected"
+
 _test_pad_one_hot()
 
 if args.probability_threshold is not None:
