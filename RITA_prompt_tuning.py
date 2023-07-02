@@ -14,8 +14,9 @@ import torch
 from mkultra.trainers import SoftPromptTrainer
 from mkultra.tuning import RITAPromptTuningLM
 from torch.utils.data import DataLoader
-from transformers import AdamW, AutoTokenizer
 from utils.train_utils import seed_everything
+
+from transformers import AdamW, AutoTokenizer
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--config", dest="config", help="path to the JSON config file", required=True)
@@ -69,5 +70,5 @@ for i in range(config["num_iterations"]):
         init_from_vocab=config["init_from_vocab"],
         prompt_init_seed=current_init_seed)
 
-    trainer.train(num_epochs=config["num_epochs"])     
+    trainer.train(num_epochs=config["num_epochs"], profile_epochs=config.get("profile_epochs"))     
 

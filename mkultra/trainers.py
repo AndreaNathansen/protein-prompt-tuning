@@ -3,10 +3,9 @@ import os
 import random
 
 import torch
-from tqdm import tqdm
-
 from mkultra.checkpoint_loader import CheckpointLoader
 from mkultra.soft_prompt import SoftPrompt
+from tqdm import tqdm
 
 
 class SoftPromptTrainer:
@@ -115,13 +114,21 @@ class SoftPromptTrainer:
         sp.to_file( os.path.join( self.project_dir,self.checkpoint_loader.json_filename_for_checkpoint(self.sp_epoch) ))
         torch.save(self.optimizer.state_dict(), os.path.join(self.project_dir, self.checkpoint_loader.optimizer_filename_for_checkpoint(self.sp_epoch)))
 
-    def train(self, num_epochs=1):
+    def train(self, num_epochs=1, profile_epochs=None):
         self.model.train()
         torch.cuda.empty_cache()
         loss_log_path_train = os.path.join(self.project_dir,"loss_log_train.csv")
         loss_log_path_eval = os.path.join(self.project_dir,"loss_log_eval.csv")
         steps_per_epoch = len(self.data_loader_train)
         bar = tqdm(total=steps_per_epoch * num_epochs)
+
+        if profile_epochs is not None:
+            prof = torch.profiler.profile(
+                activities=[torch.profiler.ProfilerActivity.CUDA],
+                schedule=torch.profiler.schedule(wait=0, warmup=1, active=steps_per_epoch * profile_epochs, repeat=1),
+                on_trace_ready=torch.profiler.tensorboard_trace_handler(os.path.join(self.project_dir,"memory_profile")),
+                profile_memory=True)
+            prof.start()
 
         while self.sp_epoch < num_epochs:
             self.model.train()
@@ -173,6 +180,9 @@ class SoftPromptTrainer:
 
                 with open(loss_log_path_train, 'a', encoding='utf-8') as file:
                     file.write(f"{total_step},{self.ema_loss}\n")
+                
+                if profile_epochs is not None:
+                    prof.step()
 
             # Save checkpoint every so often and in the last epoch
             if (self.sp_epoch%self.checkpoint_interval == 0) or (self.sp_epoch == num_epochs - 1):
@@ -194,6 +204,10 @@ class SoftPromptTrainer:
                         break
 
             self.sp_epoch += 1
+        
+        if profile_epochs is not None:
+            prof.stop()
+
 
     def evaluate(self):
         self.model.eval()
