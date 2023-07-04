@@ -70,5 +70,5 @@ for i in range(config["num_iterations"]):
         init_from_vocab=config["init_from_vocab"],
         prompt_init_seed=current_init_seed)
 
-    trainer.train(num_epochs=config["num_epochs"], profile_epochs=config.get("profile_epochs"))     
+    trainer.train(num_epochs=config["num_epochs"], record_memory_usage=config.get("record_memory_usage"))     
 
