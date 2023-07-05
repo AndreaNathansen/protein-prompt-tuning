@@ -13,8 +13,16 @@ def scrape_phobius_for_transmembrane_domains(sequences):
 
     response = requests.post('https://phobius.sbc.su.se/cgi-bin/predict.pl', files=files)
     response_body = response.text
+    
+    if (response.status_code != 200):
+        raise RuntimeError(f"Invalid response: status code {response.status_code}")
 
-    data = re.findall(r'<pre>([\s\S]*)</pre>', response_body)[0]
+    matches = re.findall(r'<pre>([\s\S]*)</pre>', response_body)
+
+    if (len(matches) == 0):
+        raise RuntimeError("Response contains no results")
+
+    data = matches[0]
     data = re.sub(' +', ' ', data) # remove multiple spaces
     data = data.replace('SEQENCE ID', 'SEQENCE_ID')
 
