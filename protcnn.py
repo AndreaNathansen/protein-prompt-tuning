@@ -110,6 +110,8 @@ def _test_pad_one_hot():
   np.testing.assert_allclose(expected, actual)
 
 assert len(tf.config.list_physical_devices('GPU')) > 0, "No GPU detected"
+print("GPU:")
+print(tf.config.list_physical_devices('GPU'))
 
 _test_pad_one_hot()
 
@@ -121,8 +123,8 @@ sess = tf.Session()
 graph = tf.Graph()
 
 with graph.as_default():
-  saved_models = [tf.saved_model.load(sess, ['serve'], 'trn-_cnn_random__random_sp_gpu-cnn_for_random_pfam-5356760'),
-                  tf.saved_model.load(sess, ['serve'], 'trn-_cnn_random__random_sp_gpu-cnn_for_random_pfam-5356766'),]
+  saved_models = [tf.saved_model.load(sess, ['serve'], 'trn-_cnn_random__random_sp_gpu-cnn_for_random_pfam-5356760')]
+                  #tf.saved_model.load(sess, ['serve'], 'trn-_cnn_random__random_sp_gpu-cnn_for_random_pfam-5356766'),]
                   #tf.saved_model.load(sess, ['serve'], 'trn-_cnn_random__random_sp_gpu-cnn_for_random_pfam-5365208')]
 assert not (len(saved_models) > 1 and args.probability_threshold is not None), \
 "Currently not supporting setting a probability threshold for an ensemble, because then the shapes for aggregation would not match anymore"
@@ -165,6 +167,12 @@ def predict_families_for_fasta_file(filename):
     
     for j, record in enumerate(dataset):
         seq = str(record.seq)
+
+        # handle edge case where the sequence has only one amino acid
+        if len(seq) <= 1:
+          results_df.iloc[j] = [record.id, False]
+          continue
+
         subseqs = split_sequence_into_windows(seq)
         is_family = False
         batch_size = 64
@@ -209,4 +217,4 @@ results_df = predict_families_for_fasta_file(args.dataset)
 if args.window_size is not None:
   results_df.to_csv(args.dataset + f"_protcnn_results_windowsize{args.window_size:04d}_stride{args.window_stride}.csv", index=False)
 else:
-  results_df.to_csv(args.dataset + f"_protcnn_results_flexible_windowsize_stride{args.window_stride}_ensemble2.csv", index=False)
+  results_df.to_csv(args.dataset + f"_protcnn_results_flexible_windowsize_stride{args.window_stride}_threshold{args.probability_threshold}.csv", index=False)
