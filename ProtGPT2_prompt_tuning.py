@@ -9,14 +9,14 @@ import json
 import os
 from pathlib import Path
 
-import torch
-from torch.utils.data import DataLoader
-from transformers import AdamW, AutoTokenizer
-
 import mkultra.sequence_loader as sequence_loader
+import torch
 from mkultra.trainers import SoftPromptTrainer
 from mkultra.tuning import GPT2PromptTuningLM
+from torch.utils.data import DataLoader
 from utils.train_utils import seed_everything
+
+from transformers import AdamW, AutoTokenizer
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--config", dest="config", help="path to the JSON config file", required=True)
@@ -48,10 +48,10 @@ for i in range(config["num_iterations"]):
     model = GPT2PromptTuningLM.from_pretrained(config["model"]).half().to("cuda")
     tokenizer = AutoTokenizer.from_pretrained(config["model"])
 
-    dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'])
+    dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'], tokenizer.vocab['<|endoftext|>'], tokenizer.vocab['<|endoftext|>'])
     dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
 
-    dataset_val = sequence_loader.FastaDataset(config["dataset_file_validation"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'])
+    dataset_val = sequence_loader.FastaDataset(config["dataset_file_validation"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'], tokenizer.vocab['<|endoftext|>'], tokenizer.vocab['<|endoftext|>'])
     dataloader_val = DataLoader(dataset_val, batch_size=config["batch_size"], shuffle=False)
 
     optimizer_params = {"lr": config["learning_rate"]}

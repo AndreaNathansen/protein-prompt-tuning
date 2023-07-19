@@ -45,7 +45,11 @@ for i in range(config["num_iterations"]):
     current_init_seed = seed + i
     project_dir = os.path.join(project_dir_root, f"{sp_name}-seed-{current_init_seed}")
 
-    model = RITAPromptTuningLM.from_pretrained(config["model"]).half().to("cuda")
+    model = RITAPromptTuningLM.from_pretrained(config["model"])
+    if config.get("record_memory_usage"):
+        model = model.to("cuda")
+    else:
+        model = model.half().to("cuda")
     tokenizer = AutoTokenizer.from_pretrained(config["model"])
 
     dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<PAD>'], tokenizer.vocab['<EOS>'], tokenizer.vocab['<EOS>'])
