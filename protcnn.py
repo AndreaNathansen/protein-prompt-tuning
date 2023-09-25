@@ -139,14 +139,12 @@ sequence_lengths_input_tensor_names = [saved_model.signature_def['confidences'].
 def split_sequence_into_windows(seq, window_size = args.window_size):
   subseqs = []
   if window_size is None:
-    # TODO: look up again, but I think in the ProtCNN paper they start at 50 minimum window size
+    # In the ProtCNN paper, 50 is the minimum window size
     for i in range(min(50, len(seq) - 1),len(seq)):
       subseqs.extend(split_sequence_into_windows(seq, i))
   else:
     if len(seq) > window_size:
       for i in range(0, len(seq) - (window_size - args.window_stride), args.window_stride):
-        # TODO: optimize this for flexible window sizes (otherwise some smaller windows towards
-        # the end of the sequence get called multiple times)
         if i + window_size > len(seq):
           subseq  = seq[len(seq) - window_size : len(seq)]
         else:

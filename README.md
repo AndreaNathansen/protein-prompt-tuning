@@ -5,14 +5,16 @@ The prompt tuning method was developed by Lester et al., see [Lester et al. The 
 For setup, you can reconstruct our conda environment by the `environment.yaml` file.
 
 ## Models
-This implementation currently support ProtGPT2 ([Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.](https://doi.org/10.1038/s41467-022-32007-7))
+This implementation currently supports ProtGPT2 ([Ferruz et al. ProtGPT2 is a deep unsupervised language model for protein design.](https://doi.org/10.1038/s41467-022-32007-7))
 and RITA ([Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequence Models.](https://arxiv.org/abs/2205.05789)).  See `mkultra/tuning.py` for implementation details.
 
 ## Training
 Training scripts for RITA and ProtGPT2 are `RITA_prompt_tuning.py` and `ProtGPT2_prompt_tuning.py`, respectively.
 They can be configured with parameters specified in a JSON config, see `training_configs/` folder and the
-Trainer documentation in `mkultra/trainers.py`.
+Trainer documentation in `mkultra/trainers.py`. You can enable memory tracking during training, but this makes the training slower.
 The training configurations in `training_configs/` are the ones that we used for our paper.
+
+TODO: add memory and epoch time tracking configs
 
 An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`, open in Colab [here](https://colab.research.google.com/github/AndreaNathansen/protein-prompt-tuning/blob/main/RITA_prompt_tuning_example.ipynb).
 
@@ -20,7 +22,7 @@ An example notebook for training a prompt for RITA is `RITA_prompt_tuning_exampl
 You can train the model with Fasta datasets if you use the `FastaDataset` class (`mkultra.sequence_loader.py`)
 as dataset input for a PyTorch `DataLoader`.
 Dataset preprocessing as in RITA can be done with the `prepare_dataset.ipynb` notebook in the `utils` folder.
-Also, have a look into the script `utils/clustering.sh` to see the configuration we used to cluster our datasets using [MMseqs2](https://github.com/soedinglab/MMseqs2).
+Also, have a look into the script `utils/clustering.sh` to see the configuration we used to cluster our datasets using [MMseqs2](https://github.com/soedinglab/MMseqs2). The current setup of the dataset notebook and clustering script are for clustering with 100% sequence similarity threshold, but you can adjust that.
 
 We also provide the datasets that we used for our experiments in the `datasets/` folder.
 They contain sequences from the Pfam family PF03272.
@@ -43,6 +45,19 @@ wget -qN https://storage.googleapis.com/brain-genomics-public/research/proteins/
 tar xzf 5356760.tar.gz
 wget https://storage.googleapis.com/brain-genomics-public/research/proteins/pfam/models/single_domain_per_sequence_zipped_models/trained_model_pfam_32.0_vocab.json
 ```
+You can set a fixed sliding window size and/or stride, or let the prediction be run on all possible windows of minimum size 50 (or the sequence length if shorter) for a sequence. Our code also supports running an ensemble of multiple ProtCNN models (as described in the ProtCNN paper), for this you have to modify the list of saved models in the script and download the respective additional models. Further, in single-model mode, you can set a probability threshold to discard predictions with a lower probability. In our final experiments, we used no fixed window size or stride, a single model, and a probability threshold of 0.5.
+
+In addition to ProtCNN, we also evaluated protein family prediction with [HMMER](http://hmmer.org/), which you can run as follows:
+```
+hmmsearch --cut_ga --tblout <path/to/sequences/file>
+```
+The HMMER runs for all our sets of generated sequences are bundled in the script `hmmer_search.sh`.
+
+TODO: add paragraph about activity prediction metrics
 
 ## Sequence generation
-For generating sequences, instantiate a prompt tuning model (see `mkultra/tuning.py`) and then load and add a prompt (`see mkultra/checkpoint_loader.py`) that was trained for that type of model, as for example in `RITA_prompt_sequence_generation.py`.
+For generating sequences, instantiate a prompt tuning model (see `mkultra/tuning.py`) and then load and add a prompt (`see mkultra/checkpoint_loader.py`) that was trained for that type of model, as for example in `RITA_prompt_sequence_generation.py`. In our experiments, we generated 193 sequences (size of our test set) in batches of 10.
+
+## A note about finetuning
+In our paper, we compare the performance of prompt-tuned models to that of finetuned models. For finetuning, we use the [run_clm.py script by Huggingface](https://github.com/huggingface/transformers/tree/v4.20.1/examples/pytorch/language-modeling) with the same batch sizes as for prompt tuning. You have to add `trust_remote_code=True` to the model loading call in line 376.
+To generate the datasets as txt, you can use the `prepare_dataset.ipynb` notebook in the `utils` folder. 

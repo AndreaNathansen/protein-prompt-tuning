@@ -1,7 +1,9 @@
 """
-Perplexity evaluation for a prompt-tuned RITA model on the training and validation set for a training run
-and on the test set. The prompt-tuned model along with the datasets can be
-loaded by specifying the config (see folder training_configs/) that was used for training the prompt.
+Perplexity evaluation for a finetuned RITA model on the training and validation set for a training run
+and on the test set. For a setup consistent to that of the prompt-tuned model, the configuration parameters are to be loaded
+by specifying the config (see folder training_configs/) that was used for training the respective prompt.
+The finetuned model is expected to be stored in ../transformers/{model_name}_finetune_test/, where model_name is the same as specified in
+the prompt tuning config (e.g. RITA_s).
 """
 
 import argparse

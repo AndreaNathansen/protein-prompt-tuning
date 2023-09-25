@@ -5,11 +5,11 @@ import os
 from pathlib import Path
 
 """
-Script for generating a number of sequences with a prompt-tuned RITA model and the respective
-base model (= without prompt). The prompt-tuned model along with its base model can be
-loaded by specifying the config (see folder training_configs/) that was used for training the prompt.
+Script for generating a number of sequences with a finetuned RITA model. For a setup consistent to that of the prompt-tuned model,
+the configuration parameters are to be loaded by specifying the config (see folder training_configs/) that was used for training the respective prompt.
+The finetuned model is expected to be stored in ../transformers/{model_name}_finetune_test/, where model_name is the same as specified in
+the prompt tuning config (e.g. RITA_s).
 Currently, sequences are generated from scratch without any starting amino acid.
-Also, currently generates 193 sequences (size of our main test set) in steps of 10. TODO: make this flexible.
 The generation sampling parameters are taken from https://github.com/lightonai/RITA
 """
 
@@ -47,8 +47,6 @@ last_batch_size = num_sequences % batch_size
 torch.cuda.empty_cache()
 tokenizer = AutoTokenizer.from_pretrained(config["model"])
 
-# # Generate sequences with the base model
-# seed_everything(seed)
 # Checkpoint loading
 model = AutoModelForCausalLM.from_config(PretrainedConfig.from_json_file(f"../transformers/{model_name}_finetune_test/config.json"), trust_remote_code=True).half().to("cuda")
 model.load_state_dict(torch.load(f"../transformers/{model_name}_finetune_test/pytorch_model.bin"))
