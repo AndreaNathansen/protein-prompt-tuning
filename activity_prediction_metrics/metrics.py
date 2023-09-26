@@ -1,3 +1,6 @@
+# Script used to generate activity predictions for the generated protein sequences
+# See metrics.ipynb for an interactive version
+
 import argparse
 import os
 from Bio import SeqIO
