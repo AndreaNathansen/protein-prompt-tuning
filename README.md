@@ -53,7 +53,10 @@ hmmsearch --cut_ga --tblout <path/to/sequences/file>
 ```
 The HMMER runs for all our sets of generated sequences are bundled in the script `hmmer_search.sh`.
 
-TODO: add paragraph about activity prediction metrics
+## Activity filters for generated protein sequences
+To reproduce our evaluations of protein activity (see [Johnson et al.](https://doi.org/10.1101/2023.03.04.531015)), run activity_prediction_metrics/metrics.py for all generated datasets. See also activity_prediction_metrics/metrics.ipynb for an interactive version.
+
+Then, use activity_prediction_metrics/aggregate.ipynb to aggregate the results. This counts the activity predictions for each generated dataset and writes everything into activity_prediction_metrics/activity.csv for further usage, e.g. plotting.
 
 ## Sequence generation
 For generating sequences, instantiate a prompt tuning model (see `mkultra/tuning.py`) and then load and add a prompt (`see mkultra/checkpoint_loader.py`) that was trained for that type of model, as for example in `RITA_prompt_sequence_generation.py`. In our experiments, we generated 193 sequences (size of our test set) in batches of 10.
