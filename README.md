@@ -12,9 +12,7 @@ and RITA ([Hesslow et al. RITA: a Study on Scaling Up Generative Protein Sequenc
 Training scripts for RITA and ProtGPT2 are `RITA_prompt_tuning.py` and `ProtGPT2_prompt_tuning.py`, respectively.
 They can be configured with parameters specified in a JSON config, see `training_configs/` folder and the
 Trainer documentation in `mkultra/trainers.py`. You can enable memory tracking during training, but this makes the training slower.
-The training configurations in `training_configs/` are the ones that we used for our paper.
-
-TODO: add memory and epoch time tracking configs
+The training configurations in `training_configs/` are the ones that we used for our paper. This includes the configs for training and evaluation, as well as those for runtime measuring and memory tracking.
 
 An example notebook for training a prompt for RITA is `RITA_prompt_tuning_example.ipynb`, open in Colab [here](https://colab.research.google.com/github/AndreaNathansen/protein-prompt-tuning/blob/main/RITA_prompt_tuning_example.ipynb).
 

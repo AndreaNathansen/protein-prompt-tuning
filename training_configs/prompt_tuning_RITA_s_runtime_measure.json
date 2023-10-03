@@ -1,0 +1,17 @@
+{
+    "project_name": "runtime-measure-prompt-tuning-clustered-100",
+    "model": "lightonai/RITA_s",
+    "block_size": 1024,
+    "batch_size": 1,
+    "num_iterations": 1,
+    "n_tokens": 10,
+    "dataset_file_train": "datasets/InterProUniprotPF03272prepared_train.fasta",
+    "dataset_file_validation": "datasets/InterProUniprotPF03272prepared_validation.fasta",
+    "dataset_file_test": "datasets/InterProUniprotPF03272prepared_test.fasta",
+    "seed": 1234567890,
+    "init_from_vocab": true,
+    "num_epochs": 3,
+    "checkpoint_interval": 3,
+    "patience": 20,
+    "learning_rate": 0.001
+}
