@@ -1,4 +1,4 @@
-# Implementation for the paper Evaluating Prompt Tuning for Conditional Protein Sequence Generation.
+# Implementation for the paper Evaluating Tuning Strategies for Sequence Generation with Protein Language Models.
 Adapted (forked and modified/enhanced) from https://github.com/corolla-johnson/mkultra, which is a prompt
 tuning implementation for NLP, supporting GPT-2.
 The prompt tuning method was developed by Lester et al., see [Lester et al. The power of scale for parameter-efficient prompt tuning.](https://aclanthology.org/2021.emnlp-main.243/)
