@@ -9,14 +9,14 @@ import json
 import os
 from pathlib import Path
 
-import torch
-from torch.utils.data import DataLoader
-from transformers import AdamW, AutoTokenizer
-
 import mkultra.sequence_loader as sequence_loader
+import torch
 from mkultra.trainers import SoftPromptTrainer
 from mkultra.tuning import RITAPromptTuningLM
+from torch.utils.data import DataLoader
 from utils.train_utils import seed_everything
+
+from transformers import AdamW, AutoTokenizer
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--config", dest="config", help="path to the JSON config file", required=True)
@@ -45,13 +45,17 @@ for i in range(config["num_iterations"]):
     current_init_seed = seed + i
     project_dir = os.path.join(project_dir_root, f"{sp_name}-seed-{current_init_seed}")
 
-    model = RITAPromptTuningLM.from_pretrained(config["model"]).half().to("cuda")
+    model = RITAPromptTuningLM.from_pretrained(config["model"])
+    if config.get("record_memory_usage"):
+        model = model.to("cuda")
+    else:
+        model = model.half().to("cuda")
     tokenizer = AutoTokenizer.from_pretrained(config["model"])
 
-    dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<PAD>'])
+    dataset = sequence_loader.FastaDataset(config["dataset_file_train"], tokenizer, block_size, tokenizer.vocab['<PAD>'], tokenizer.vocab['<EOS>'], tokenizer.vocab['<EOS>'])
     dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True)
 
-    dataset_val = sequence_loader.FastaDataset(config["dataset_file_validation"], tokenizer, block_size, tokenizer.vocab['<PAD>'])
+    dataset_val = sequence_loader.FastaDataset(config["dataset_file_validation"], tokenizer, block_size, tokenizer.vocab['<PAD>'], tokenizer.vocab['<EOS>'], tokenizer.vocab['<EOS>'])
     dataloader_val = DataLoader(dataset_val, batch_size=config["batch_size"], shuffle=False)
 
     optimizer_params = {"lr": config["learning_rate"]}
@@ -70,5 +74,5 @@ for i in range(config["num_iterations"]):
         init_from_vocab=config["init_from_vocab"],
         prompt_init_seed=current_init_seed)
 
-    trainer.train(num_epochs=config["num_epochs"])     
+    trainer.train(num_epochs=config["num_epochs"], record_memory_usage=config.get("record_memory_usage"))     
 

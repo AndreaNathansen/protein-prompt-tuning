@@ -1,12 +1,12 @@
+import csv
 import math
 import os
-import random
 
+import pandas as pd
 import torch
-from tqdm import tqdm
-
 from mkultra.checkpoint_loader import CheckpointLoader
 from mkultra.soft_prompt import SoftPrompt
+from tqdm import tqdm
 
 
 class SoftPromptTrainer:
@@ -115,7 +115,25 @@ class SoftPromptTrainer:
         sp.to_file( os.path.join( self.project_dir,self.checkpoint_loader.json_filename_for_checkpoint(self.sp_epoch) ))
         torch.save(self.optimizer.state_dict(), os.path.join(self.project_dir, self.checkpoint_loader.optimizer_filename_for_checkpoint(self.sp_epoch)))
 
-    def train(self, num_epochs=1):
+    # memory tracking (start and end) based on https://discuss.pytorch.org/t/measuring-peak-memory-usage-tracemalloc-for-pytorch/34067/11
+    def _memory_tracking_start(self):
+        start_usage = torch.cuda.memory_allocated()
+        torch.cuda.reset_max_memory_allocated()
+        return start_usage
+
+    def _memory_tracking_end_and_record(self, start_usage, memory_usage_keys):
+        b2mb = lambda x: int(x/2**20)
+        end_usage  = torch.cuda.memory_allocated()
+        peak = torch.cuda.max_memory_allocated()
+        used   = b2mb(end_usage-start_usage)
+        peaked = b2mb(peak-start_usage)
+        return {memory_usage_keys[0]: self.sp_epoch,
+                memory_usage_keys[1]: b2mb(end_usage),
+                memory_usage_keys[2]: b2mb(peak),
+                memory_usage_keys[3]: used,
+                memory_usage_keys[4]: peaked}
+
+    def train(self, num_epochs=1, record_memory_usage=False):
         self.model.train()
         torch.cuda.empty_cache()
         loss_log_path_train = os.path.join(self.project_dir,"loss_log_train.csv")
@@ -123,7 +141,17 @@ class SoftPromptTrainer:
         steps_per_epoch = len(self.data_loader_train)
         bar = tqdm(total=steps_per_epoch * num_epochs)
 
+        if record_memory_usage:
+            memory_usage_results_path = os.path.join(self.project_dir,"memory_usage.csv")
+            memory_usage_keys = ["epoch", "total_end", "total_peak", "delta_end", "delta_peaked"]
+            with open(memory_usage_results_path, "w") as f:
+                csv.DictWriter(f, memory_usage_keys).writeheader()
+
+
         while self.sp_epoch < num_epochs:
+            if record_memory_usage:
+                start_usage = self._memory_tracking_start()
+
             self.model.train()
             current_seed = self.shuffle_seed + self.sp_epoch
             torch.manual_seed(current_seed)
@@ -173,6 +201,11 @@ class SoftPromptTrainer:
 
                 with open(loss_log_path_train, 'a', encoding='utf-8') as file:
                     file.write(f"{total_step},{self.ema_loss}\n")
+            
+            if record_memory_usage:
+                memory_record_for_epoch = self._memory_tracking_end_and_record(start_usage, memory_usage_keys)
+                with open(memory_usage_results_path, "a") as f:
+                    csv.DictWriter(f, memory_usage_keys).writerow(memory_record_for_epoch)
 
             # Save checkpoint every so often and in the last epoch
             if (self.sp_epoch%self.checkpoint_interval == 0) or (self.sp_epoch == num_epochs - 1):

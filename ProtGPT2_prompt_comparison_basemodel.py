@@ -11,15 +11,15 @@ import json
 import os
 from pathlib import Path
 
+import mkultra.sequence_loader as sequence_loader
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-import mkultra.sequence_loader as sequence_loader
 from mkultra.evaluator import Evaluator
 from mkultra.tuning import GPT2PromptTuningLM
+from torch.utils.data import DataLoader
 from utils.train_utils import seed_everything
+
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 parser = argparse.ArgumentParser(prog="Prompt Tuning")
 parser.add_argument("--config", dest="config", help="path to the JSON config file", required=True)
@@ -48,7 +48,7 @@ block_size = config["block_size"]-config["n_tokens"]
 
 torch.cuda.empty_cache()
 tokenizer = AutoTokenizer.from_pretrained(config["model"])
-dataset_test = sequence_loader.FastaDataset(config["dataset_file_test"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'])
+dataset_test = sequence_loader.FastaDataset(config["dataset_file_test"], tokenizer, block_size, tokenizer.vocab['<|endoftext|>'], tokenizer.vocab['<|endoftext|>'], tokenizer.vocab['<|endoftext|>'])
 dataloader_test = DataLoader(dataset_test, batch_size=config["batch_size"], shuffle=False)
 
 
